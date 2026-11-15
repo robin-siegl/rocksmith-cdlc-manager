@@ -15,5 +15,6 @@ $references = @('PresentationCore.dll','PresentationFramework.dll','WindowsBase.
     if (!(Test-Path $reference)) { $reference = Join-Path $framework $_ }
     "/r:$reference"
 }
-& $compiler /nologo /target:winexe /platform:x64 /optimize+ "/out:$binary" "/win32icon:$ico" "/resource:$ico,App.ico" "/resource:$shell,Shell.xaml" /r:System.Windows.Forms.dll /r:System.Net.Http.dll /r:System.Web.Extensions.dll @references $sources
+& $compiler /nologo /target:winexe /platform:x64 /optimize+ "/out:$binary" "/win32icon:$ico" "/resource:$ico,App.ico" "/resource:$shell,Shell.xaml" /r:System.Windows.Forms.dll /r:System.Net.Http.dll /r:System.Web.Extensions.dll /r:Microsoft.VisualBasic.dll @references $sources
 if ($LASTEXITCODE) { throw 'Windows build failed.' }
+

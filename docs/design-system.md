@@ -12,8 +12,9 @@ Rocksmith+ informs the high-contrast charcoal and yellow palette. The mark in th
 | Secondary text | `#A8ADB0` |
 | Accent | `#F6E650` |
 
-The desktop uses Segoe UI, 14 DIP body text, 31 DIP page titles, 40 DIP inputs and buttons, and 48 DIP minimum list rows. Buttons and inputs use 7 DIP corners. Cards use 10 DIP corners. Yellow marks the main action and keyboard focus. The current navigation button uses an amber-tinted surface.
+The desktop uses Segoe UI, 14 DIP body text, 31 DIP page titles, 40 DIP inputs and buttons, and 48 DIP minimum list rows. Controls and panels have square corners. Yellow marks the main action and keyboard focus. The current navigation button uses an amber-tinted surface.
 
-The left sidebar stays fixed. Keep the title and status rows in place when moving between views. Use the center for files or songs and reserve the footer for actions on that selection. Keep settings grouped by the setting being changed.
+The left sidebar and custom caption stay fixed. WPF WindowChrome supplies the drag and resize areas. Keep the title and status rows in place when moving between views. Use the center for files or songs and reserve the footer for actions on that selection. Keep settings grouped by the setting being changed.
 
 Maintain the mark in `desktop/Shell.xaml` and `scripts/New-Icons.ps1` together. Packaging renders the Windows ICO and the Chrome PNGs from the same contours.
+

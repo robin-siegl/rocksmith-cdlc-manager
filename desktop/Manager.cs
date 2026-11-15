@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -10,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
@@ -53,6 +55,7 @@ namespace CdlcManager
     {
         public string Title { get; set; }
         public string Detail { get; set; }
+        public string Group { get; set; }
         internal Song Song;
         internal string File;
     }
@@ -74,6 +77,7 @@ namespace CdlcManager
         readonly ListBox queue, imports, library;
         readonly TextBox link;
         string[] downloaded = new string[0], installed = new string[0];
+        Dictionary<string, Arrangement[]> arrangements = new Dictionary<string, Arrangement[]>();
         Settings state;
         int page, loadVersion;
         bool busy;
@@ -95,6 +99,21 @@ namespace CdlcManager
             imports = Get<ListBox>("ImportItems");
             library = Get<ListBox>("LibraryItems");
             link = Get<TextBox>("LinkInput");
+            Click("MinimizeWindow", () => SystemCommands.MinimizeWindow(Window), true);
+            Click("MaximizeWindow", () =>
+            {
+                if (Window.WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(Window);
+                else SystemCommands.MaximizeWindow(Window);
+            }, true);
+            Click("CloseWindow", () => SystemCommands.CloseWindow(Window), true);
+            Window.StateChanged += (sender, args) =>
+            {
+                var button = Get<Button>("MaximizeWindow");
+                bool maximized = Window.WindowState == WindowState.Maximized;
+                button.Content = maximized ? "\uE923" : "\uE922";
+                button.ToolTip = maximized ? "Restore" : "Maximize";
+                System.Windows.Automation.AutomationProperties.SetName(button, (string)button.ToolTip);
+            };
 
             for (int index = 0; index < tabs.Length; index++)
             {
@@ -111,6 +130,7 @@ namespace CdlcManager
             Click("RemoveSong", RemoveSong);
             Click("Rescan", Refresh);
             Click("RefreshFiles", Refresh);
+            Click("ImportMetadata", () => Start(ImportMetadata));
             Click("SelectAllFiles", () => imports.SelectAll());
             Click("ImportSelected", () => Start(ImportFiles));
             Click("RevealFile", RevealFile);
@@ -120,6 +140,7 @@ namespace CdlcManager
             Click("Connect", ConnectChrome);
             Get<TextBox>("ImportFilter").TextChanged += (sender, args) => ShowFiles(true);
             Get<TextBox>("LibraryFilter").TextChanged += (sender, args) => ShowFiles(false);
+            Get<ComboBox>("LibraryGrouping").SelectionChanged += (sender, args) => ShowFiles(false);
             queue.SelectionChanged += (sender, args) => UpdateActions();
             imports.SelectionChanged += (sender, args) => UpdateActions();
             library.SelectionChanged += (sender, args) => UpdateActions();
@@ -135,9 +156,9 @@ namespace CdlcManager
         T Get<T>(string name) where T : class { return (T)Window.FindName(name); }
         Song SelectedSong { get { var row = queue.SelectedItem as Row; return row == null ? null : row.Song; } }
 
-        void Click(string name, Action action)
+        void Click(string name, Action action, bool caption = false)
         {
-            Get<Button>(name).Click += (sender, args) => Safely(action);
+            Get<Button>(name).Click += (sender, args) => { if (caption) action(); else Safely(action); };
         }
 
         void Safely(Action action)
@@ -189,7 +210,15 @@ namespace CdlcManager
                         var files = await Task.Run(() => Library.Scan(folder, !importing));
                         if (version != loadVersion || requested != page) return;
                         if (importing) downloaded = files;
-                        else installed = files;
+                        else
+                        {
+                            var metadata = await Task.Run(() => File.Exists(ArrangementIndex.SavedExport)
+                                ? ArrangementIndex.Match(files, ArrangementIndex.Read(ArrangementIndex.SavedExport))
+                                : new Dictionary<string, Arrangement[]>());
+                            if (version != loadVersion || requested != page) return;
+                            installed = files;
+                            arrangements = metadata;
+                        }
                         ShowFiles(importing);
                         break;
                     case 3:
@@ -221,10 +250,21 @@ namespace CdlcManager
             var list = importing ? imports : library;
             var previous = list.SelectedItems.Cast<Row>().Select(row => row.File).ToArray();
             var term = Get<TextBox>(importing ? "ImportFilter" : "LibraryFilter").Text.Trim();
-            var entries = importing ? downloaded : installed;
-            var rows = entries.Where(file => Path.GetFileName(file).IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .Select(file => new Row { File = file, Title = Path.GetFileNameWithoutExtension(file), Detail = ".psarc" }).ToArray();
-            list.ItemsSource = rows;
+            int grouping = importing ? 0 : Get<ComboBox>("LibraryGrouping").SelectedIndex;
+            var rows = (importing
+                ? downloaded.Select(file => new Row { File = file, Title = Path.GetFileNameWithoutExtension(file), Detail = ".psarc" })
+                : installed.SelectMany(file => LibraryRows(file, grouping)))
+                .Where(row => row.Title.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                    row.Detail.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
+                    Path.GetFileName(row.File).IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                .ToArray();
+            if (grouping > 0)
+            {
+                var view = new ListCollectionView(rows.OrderBy(row => row.Group).ThenBy(row => row.Title).ToArray());
+                view.GroupDescriptions.Add(new PropertyGroupDescription("Group"));
+                list.ItemsSource = view;
+            }
+            else list.ItemsSource = rows;
             var selection = rows.Where(item => previous.Contains(item.File));
             if (importing)
                 foreach (var row in selection) list.SelectedItems.Add(row);
@@ -234,7 +274,56 @@ namespace CdlcManager
             empty.Text = !Directory.Exists(folder) ? "Choose a folder in Settings." :
                 term.Length > 0 ? "No files match this search." : importing ? "No Windows CDLC files found in Downloads." : "No Windows CDLC files found in this folder.";
             empty.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (!importing)
+                Get<TextBlock>("MetadataStatus").Text = arrangements.Count == 0
+                    ? "Import an Arrangement Analyzer CSV to add tuning and parts."
+                    : arrangements.Count + (arrangements.Count == 1 ? " file" : " files") + " with arrangement info";
             UpdateActions();
+        }
+
+        IEnumerable<Row> LibraryRows(string file, int grouping)
+        {
+            Arrangement[] details;
+            if (!arrangements.TryGetValue(file, out details))
+            {
+                yield return new Row { File = file, Title = Path.GetFileNameWithoutExtension(file),
+                    Detail = "Metadata unavailable", Group = "Unknown" };
+                yield break;
+            }
+            foreach (var song in details.GroupBy(item => new { item.Artist, item.Title }))
+            {
+                string title = song.Key.Title.Length == 0 ? Path.GetFileNameWithoutExtension(file) : song.Key.Title;
+                if (song.Key.Artist.Length > 0) title = song.Key.Artist + " — " + title;
+                foreach (var group in song.GroupBy(item => grouping == 1 ? (item.Tuning.Length == 0 ? "Unknown tuning" : item.Tuning)
+                    : grouping == 2 ? item.Part : ""))
+                {
+                    string parts = String.Join(" · ", group.Select(item => item.Tuning.Length == 0 ? item.Part
+                        : item.Part + " / " + item.Tuning).Distinct(StringComparer.OrdinalIgnoreCase));
+                    yield return new Row { File = file, Title = title, Detail = parts, Group = group.Key };
+                }
+            }
+        }
+
+        async Task<string> ImportMetadata()
+        {
+            var dialog = new OpenFileDialog { Filter = "Arrangement Analyzer export (*.csv)|*.csv", CheckFileExists = true };
+            if (dialog.ShowDialog(Window) != true) return "";
+            return await Task.Run(() =>
+            {
+                var rows = ArrangementIndex.Read(dialog.FileName);
+                if (rows.Length == 0) throw new InvalidDataException("The CSV contains no Windows CDLC arrangement rows.");
+                string destination = ArrangementIndex.SavedExport;
+                Directory.CreateDirectory(Library.DataFolder);
+                string temp = Path.Combine(Library.DataFolder, Guid.NewGuid() + ".tmp");
+                try
+                {
+                    File.Copy(dialog.FileName, temp);
+                    if (File.Exists(destination)) File.Replace(temp, destination, null);
+                    else File.Move(temp, destination);
+                }
+                finally { if (File.Exists(temp)) File.Delete(temp); }
+                return "Saved " + rows.Length + " arrangement records.";
+            });
         }
 
         void ShowSettings()
@@ -437,6 +526,7 @@ namespace CdlcManager
             }
             downloaded = new string[0];
             installed = new string[0];
+            arrangements.Clear();
             ShowSettings();
             status.Text = "Folder saved.";
         }
@@ -505,3 +595,4 @@ namespace CdlcManager
         }
     }
 }
+
