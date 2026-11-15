@@ -3,3 +3,6 @@
 .rs-cdlc-control[data-state=installed]{background:#17332d;border-color:#467866;color:#aaf3d5;cursor:default}
 .rs-cdlc-control[data-state=saved]{background:#54491d}
 .rs-cdlc-control:focus-visible{outline:2px solid #fae743;outline-offset:2px}
+.rs-cdlc-detail-actions{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
+.rs-cdlc-detail-actions .rs-cdlc-control{margin:0}
+

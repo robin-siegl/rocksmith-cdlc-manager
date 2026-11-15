@@ -84,6 +84,53 @@
         </Setter.Value>
       </Setter>
     </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="11"/>
+      <Setter Property="Background" Value="#191B1D"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <ControlTemplate.Resources>
+              <Style x:Key="TrackButton" TargetType="RepeatButton">
+                <Setter Property="Focusable" Value="False"/>
+                <Setter Property="Template">
+                  <Setter.Value><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate></Setter.Value>
+                </Setter>
+              </Style>
+            </ControlTemplate.Resources>
+            <Border Background="{TemplateBinding Background}">
+              <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton><RepeatButton x:Name="PreviousPage" Command="ScrollBar.PageUpCommand" Style="{StaticResource TrackButton}"/></Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb>
+                    <Thumb.Template>
+                      <ControlTemplate TargetType="Thumb">
+                        <Border x:Name="Grip" Background="#515659" Margin="2"/>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="#6D7376"/></Trigger>
+                          <Trigger Property="IsDragging" Value="True"><Setter TargetName="Grip" Property="Background" Value="#868B8D"/></Trigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Thumb.Template>
+                  </Thumb>
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton><RepeatButton x:Name="NextPage" Command="ScrollBar.PageDownCommand" Style="{StaticResource TrackButton}"/></Track.IncreaseRepeatButton>
+              </Track>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Orientation" Value="Horizontal">
+                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                <Setter TargetName="PreviousPage" Property="Command" Value="ScrollBar.PageLeftCommand"/>
+                <Setter TargetName="NextPage" Property="Command" Value="ScrollBar.PageRightCommand"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal"><Setter Property="Width" Value="Auto"/><Setter Property="Height" Value="11"/></Trigger>
+      </Style.Triggers>
+    </Style>
     <Style TargetType="ListBox">
       <Setter Property="Background" Value="Transparent"/>
       <Setter Property="Foreground" Value="#F5F5EE"/>

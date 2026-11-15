@@ -1,5 +1,13 @@
 let data = {queue: [], installed: []};
 let scheduled = false;
+let lastDetail = null;
+
+function windowsLink(id) {
+  return Array.from(document.querySelectorAll('a[href*="collectedcdlcs/toggle/"]')).find(anchor => {
+    const url = new URL(anchor.href);
+    return url.origin === location.origin && url.pathname.endsWith('/toggle/' + id) && url.searchParams.get('platform') === 'pc';
+  });
+}
 
 function addControl(container, id, title) {
   if (!/^\d{1,12}$/.test(id) || !container) return;
@@ -43,7 +51,24 @@ function render() {
   const detail = location.pathname.match(/^\/cdlc\/(\d+)\/?$/);
   if (detail) {
     const heading = document.querySelector('main h1, h1');
-    if (heading) addControl(heading.parentElement, detail[1], heading.textContent.trim());
+    const link = windowsLink(detail[1]);
+    if (heading && link) {
+      let actions = link.nextElementSibling;
+      if (!actions?.classList.contains('rs-cdlc-detail-actions')) {
+        actions = document.createElement('span');
+        actions.className = 'rs-cdlc-detail-actions';
+        link.after(actions);
+      }
+      addControl(actions, detail[1], heading.textContent.trim());
+      if (lastDetail !== detail[1]) {
+        lastDetail = detail[1];
+        chrome.runtime.sendMessage({type:'download-intent'}).then(result => {
+          if (result?.start && actions.isConnected) void requestWindowsDownload(actions, detail[1]);
+        }).catch(() => {});
+      }
+    }
+  } else {
+    lastDetail = null;
   }
 }
 
@@ -73,17 +98,15 @@ chrome.storage.onChanged.addListener(changes => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
 setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
 void refresh();
+schedule();
 
-async function requestWindowsDownload(button) {
-  const id = location.pathname.match(/^\/cdlc\/(\d+)\/?$/)?.[1];
-  if (!id) return;
-  button.disabled = true;
-  button.textContent = 'Getting Windows link…';
+async function requestWindowsDownload(actions, id) {
+  const status = document.createElement('span');
+  status.setAttribute('role', 'status');
+  status.textContent = 'Getting Windows link…';
+  actions.append(status);
   try {
-    const link = Array.from(document.querySelectorAll('a[href*="collectedcdlcs/toggle/"]')).find(anchor => {
-      const url = new URL(anchor.href);
-      return url.origin === location.origin && url.pathname.endsWith('/toggle/' + id) && url.searchParams.get('platform') === 'pc';
-    });
+    const link = windowsLink(id);
     if (!link) throw new Error('Sign in to Ignition and use its Windows download button if available.');
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
     if (!token) throw new Error('Reload Ignition, then try again.');
@@ -95,28 +118,11 @@ async function requestWindowsDownload(button) {
     if (typeof downloadLink !== 'string') throw new Error('Ignition did not return a file link. Try its Windows download button.');
     const result = await chrome.runtime.sendMessage({type:'download-link',url:downloadLink,id});
     if (result.error) throw new Error(result.error);
-    button.textContent = result.downloaded ? 'Download started' : 'File host opened';
+    status.textContent = result.downloaded ? 'Download started' : 'File host opened';
   } catch (error) {
-    button.textContent = 'Try Ignition’s Windows button';
-    button.title = error.message;
-  } finally {
-    button.disabled = false;
+    status.textContent = error.message;
   }
 }
 
-if (/^\/cdlc\/\d+\/?$/.test(location.pathname)) {
-  const title = document.querySelector('main h1, h1');
-  if (title) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'rs-cdlc-control';
-    button.textContent = 'Download Windows';
-    button.onclick = () => requestWindowsDownload(button);
-    title.parentElement.append(button);
-    chrome.runtime.sendMessage({type:'download-intent'}).then(result => {
-      if (result?.start) void requestWindowsDownload(button);
-    }).catch(() => {});
-  }
-}
 
 
