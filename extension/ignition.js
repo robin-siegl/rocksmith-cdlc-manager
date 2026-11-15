@@ -9,22 +9,25 @@ function windowsLink(id) {
   });
 }
 
-function addControl(container, id, title) {
+function addControl(container, id, title, row = null) {
   if (!/^\d{1,12}$/.test(id) || !container) return;
-  let control = container.querySelector('.rs-cdlc-save');
+  let control = (row || container).querySelector('.rs-cdlc-save');
   if (!control) {
     control = document.createElement('button');
     control.type = 'button';
     control.className = 'rs-cdlc-control rs-cdlc-save';
-    container.append(control);
   }
+  if (control.parentElement !== container) container.append(control);
+  control.classList.toggle('rs-cdlc-row-save', Boolean(row));
   const installed = data.installed.includes(id);
   const saved = data.queue.some(song => song.id === id);
-  const text = installed ? '✓ Installed' : saved ? '✓ Saved' : '+ Save for later';
+  const label = installed ? 'Installed' : saved ? 'Remove from Download Later' : 'Save for later';
+  const text = row ? (installed || saved ? '✓' : '+') : (installed ? '✓ Installed' : saved ? '✓ Saved' : '+ Save for later');
   if (control.textContent !== text) control.textContent = text;
   control.dataset.state = installed ? 'installed' : saved ? 'saved' : 'new';
   control.title = installed ? 'This listing is linked to a file in your Rocksmith DLC folder' : saved ? 'Remove from Download Later' : 'Add to Download Later';
   control.setAttribute('aria-disabled', String(installed));
+  control.setAttribute('aria-label', label);
   control.onclick = async event => {
     event.preventDefault();
     event.stopPropagation();
@@ -45,8 +48,9 @@ function addControl(container, id, title) {
 function render() {
   for (const row of document.querySelectorAll('tr[data-cdlc-id]')) {
     const id = row.dataset.cdlcId;
-    const link = row.querySelector('a[href$="/cdlc/' + CSS.escape(id) + '"]');
-    if (link) addControl(link.closest('td'), id, link.title || link.textContent.trim());
+    const title = row.querySelector('td.title a.table-link, td.header-title a.table-link');
+    const menu = row.querySelector('td.header-download [data-row-menu]');
+    if (title && menu) addControl(menu.parentElement, id, title.title || title.textContent.trim(), row);
   }
   const detail = location.pathname.match(/^\/cdlc\/(\d+)\/?$/);
   if (detail) {

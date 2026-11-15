@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Rocksmith CDLC Manager",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "Save Ignition songs for later and see which PC files are installed.",
   "permissions": [
     "storage",

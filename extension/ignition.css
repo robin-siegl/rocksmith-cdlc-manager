@@ -5,4 +5,5 @@
 .rs-cdlc-control:focus-visible{outline:2px solid #fae743;outline-offset:2px}
 .rs-cdlc-detail-actions{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
 .rs-cdlc-detail-actions .rs-cdlc-control{margin:0}
+.rs-cdlc-row-save{display:inline-grid;place-items:center;flex:none;width:26px;height:26px;margin:0 0 0 5px;padding:0;font-size:15px;line-height:1}
 
