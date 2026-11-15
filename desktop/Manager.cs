@@ -55,6 +55,7 @@ namespace CdlcManager
     {
         public string Title { get; set; }
         public string Detail { get; set; }
+        public bool CanOpen { get { return Song != null; } }
         internal Song Song;
         internal string File;
     }
@@ -122,8 +123,16 @@ namespace CdlcManager
             Click("GlobalAction", () => Navigate(3));
             Click("AddLink", () => Start(AddLink));
             link.KeyDown += (sender, args) => { if (args.Key == Key.Enter) Start(AddLink); };
-            Click("OpenSong", OpenSong);
-            queue.MouseDoubleClick += (sender, args) => Safely(OpenSong);
+            queue.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, args) =>
+            {
+                var button = args.OriginalSource as Button;
+                var row = button == null ? null : button.DataContext as Row;
+                if (row != null && row.CanOpen)
+                {
+                    args.Handled = true;
+                    Safely(() => OpenSong(row.Song));
+                }
+            }));
             Click("RemoveSong", RemoveSong);
             Click("Rescan", Refresh);
             Click("RefreshFiles", Refresh);
@@ -280,7 +289,6 @@ namespace CdlcManager
             bool hasSong = SelectedSong != null;
             Get<Button>("GlobalAction").Visibility = page != 3 && !Directory.Exists(state.Dlc) ? Visibility.Visible : Visibility.Collapsed;
             Get<StackPanel>("SongActions").Visibility = hasSong ? Visibility.Visible : Visibility.Hidden;
-            Get<Button>("OpenSong").IsEnabled = !busy && hasSong;
             Get<Button>("RemoveSong").IsEnabled = !busy && hasSong;
             Get<Button>("ImportSelected").IsEnabled = !busy && imports.SelectedItems.Count > 0;
             Get<Button>("DeleteDownloads").IsEnabled = !busy && imports.SelectedItems.Count > 0;
@@ -363,10 +371,8 @@ namespace CdlcManager
             }
         }
 
-        void OpenSong()
+        static void OpenSong(Song song)
         {
-            var song = SelectedSong;
-            if (song == null) return;
             var url = "https://ignition4.customsforge.com/cdlc/" + song.Id;
             try { Process.Start(new ProcessStartInfo("chrome.exe", url) { UseShellExecute = true }); }
             catch (System.ComponentModel.Win32Exception) { throw new IOException("Open the Chrome extension and download the song from Download Later."); }
