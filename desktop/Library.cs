@@ -15,6 +15,9 @@ namespace CdlcManager
         public string Title { get; set; }
         public string Url { get; set; }
         public string File { get; set; }
+        public string DownloadedFile { get; set; }
+        public bool Removed { get; set; }
+        public string QueuedAt { get; set; }
     }
 
     public sealed class Settings
@@ -121,6 +124,60 @@ namespace CdlcManager
             finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
 
+        internal static HashSet<string> FindImported(string[] downloads, string folder)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (downloads.Length == 0 || !Directory.Exists(folder)) return result;
+            var candidates = Scan(folder, true).Select(path => new FileInfo(path))
+                .Where(file => file.Exists).ToLookup(file => file.Length);
+            foreach (var path in downloads)
+            {
+                try
+                {
+                    var source = new FileInfo(path);
+                    if (source.Exists && candidates[source.Length].Any(candidate =>
+                        !String.Equals(candidate.FullName, source.FullName, StringComparison.OrdinalIgnoreCase)
+                        && SameFile(candidate.FullName, source.FullName))) result.Add(path);
+                }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
+            }
+            return result;
+        }
+
+        internal static int Recycle(string[] files, Settings state, bool importedOnly)
+        {
+            if (!Directory.Exists(state.Downloads)) return 0;
+            var downloads = Path.GetFullPath(state.Downloads).TrimEnd(Path.DirectorySeparatorChar);
+            var dlc = Directory.Exists(state.Dlc) ? Path.GetFullPath(state.Dlc).TrimEnd(Path.DirectorySeparatorChar) : "";
+            if (dlc.Length > 0 && (String.Equals(downloads, dlc, StringComparison.OrdinalIgnoreCase) ||
+                downloads.StartsWith(dlc + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                throw new IOException("Choose a Downloads folder outside the Rocksmith DLC folder to delete files.");
+            if (HasRedirect(downloads) || (dlc.Length > 0 && HasRedirect(dlc)))
+                throw new IOException("Downloads cleanup requires folder paths without junctions or symbolic links.");
+            var verified = importedOnly ? FindImported(files, state.Dlc) : null;
+            int count = 0;
+            foreach (string path in files)
+            {
+                if (!String.Equals(Path.GetDirectoryName(Path.GetFullPath(path)), downloads, StringComparison.OrdinalIgnoreCase)
+                    || !PcFile.IsMatch(path) || !File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0
+                    || (verified != null && !verified.Contains(path))) continue;
+                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path,
+                    Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                    Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin,
+                    Microsoft.VisualBasic.FileIO.UICancelOption.ThrowException);
+                count++;
+            }
+            return count;
+        }
+
+        static bool HasRedirect(string path)
+        {
+            for (var directory = new DirectoryInfo(path); directory != null; directory = directory.Parent)
+                if ((directory.Attributes & FileAttributes.ReparsePoint) != 0) return true;
+            return false;
+        }
+
         static bool SameFile(string left, string right)
         {
             using (var a = File.OpenRead(left))
@@ -130,3 +187,4 @@ namespace CdlcManager
         }
     }
 }
+

@@ -15,10 +15,10 @@ The Windows release is a portable x64 application for Windows 10/11 with .NET Fr
 ## Use it
 
 - **Save a song.** Select **Save for later** on Ignition. Find saved songs in the extension’s **Download Later** popup and in the desktop **Download queue**. The extension can hold saves locally until it connects.
-- **Download and link.** Open a queued song in Ignition, download the Windows file, then select the song in the app and choose **Import for song**. The extension shows **Installed** while its linked file exists. Use **Link existing file** for a song already in your DLC folder.
-- **Import several files.** In **Import files**, select PC archives from Downloads and click **Import selected**. The app keeps the originals, reuses identical same-name files, and gives different files a new name.
+- **Download.** Click **Download** next to a song in the Chrome queue. The extension requests a fresh Windows link through your signed-in Ignition session. Direct PC links and supported MediaFire files start in Chrome. If the host needs a file choice, finish in its tab. The Windows queue can open the listing in Chrome.
+- **Import and clean up.** In **Import files**, select PC archives and click **Import selected**. **✓ Imported** shows an identical copy in the DLC folder. **Delete selected** moves selected downloads to the Recycle Bin. **Clean up imported** rechecks that each download has an identical copy in the game folder before recycling it.
+- **Remove queue entries** at any time. Removing a queue entry leaves its files in place. An extension-managed download earns an **Installed** badge once the corresponding file is imported. Downloads completed manually may appear only in the local library.
 - **Browse local files.** **Installed library** lists PC CDLC in the DLC folder and its subfolders. Use **Show in Explorer** to locate a file.
-- **See tunings and arrangements.** In CustomsForge Song Manager's **Arrangement Analyzer**, enable **FilePath** or **FileName**, **Arrangement**, and **Tuning**, plus **Artist** and **Title** for song names. Export the grid as CSV and use **Installed library → Import arrangement CSV**. Group by tuning or by arrangement to see Lead, Rhythm, and Bass separately. Export again after adding songs to update the metadata.
 - **Paste links.** Ignition song links are queued. A direct HTTPS link serving a PC PSARC can be downloaded in the app. Share pages that require a confirmation or file choice use Chrome.
 
 ## Develop

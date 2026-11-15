@@ -55,7 +55,6 @@ namespace CdlcManager
     {
         public string Title { get; set; }
         public string Detail { get; set; }
-        public string Group { get; set; }
         internal Song Song;
         internal string File;
     }
@@ -77,7 +76,7 @@ namespace CdlcManager
         readonly ListBox queue, imports, library;
         readonly TextBox link;
         string[] downloaded = new string[0], installed = new string[0];
-        Dictionary<string, Arrangement[]> arrangements = new Dictionary<string, Arrangement[]>();
+        HashSet<string> imported = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         Settings state;
         int page, loadVersion;
         bool busy;
@@ -125,14 +124,13 @@ namespace CdlcManager
             link.KeyDown += (sender, args) => { if (args.Key == Key.Enter) Start(AddLink); };
             Click("OpenSong", OpenSong);
             queue.MouseDoubleClick += (sender, args) => Safely(OpenSong);
-            Click("InstallSong", () => Start(ImportForSong));
-            Click("LinkSong", LinkExisting);
             Click("RemoveSong", RemoveSong);
             Click("Rescan", Refresh);
             Click("RefreshFiles", Refresh);
-            Click("ImportMetadata", () => Start(ImportMetadata));
             Click("SelectAllFiles", () => imports.SelectAll());
             Click("ImportSelected", () => Start(ImportFiles));
+            Click("DeleteDownloads", () => Start(() => RecycleDownloads(false)));
+            Click("CleanDownloads", () => Start(() => RecycleDownloads(true)));
             Click("RevealFile", RevealFile);
             library.MouseDoubleClick += (sender, args) => Safely(RevealFile);
             Click("ChooseDlc", () => ChooseFolder(true));
@@ -140,7 +138,6 @@ namespace CdlcManager
             Click("Connect", ConnectChrome);
             Get<TextBox>("ImportFilter").TextChanged += (sender, args) => ShowFiles(true);
             Get<TextBox>("LibraryFilter").TextChanged += (sender, args) => ShowFiles(false);
-            Get<ComboBox>("LibraryGrouping").SelectionChanged += (sender, args) => ShowFiles(false);
             queue.SelectionChanged += (sender, args) => UpdateActions();
             imports.SelectionChanged += (sender, args) => UpdateActions();
             library.SelectionChanged += (sender, args) => UpdateActions();
@@ -209,16 +206,14 @@ namespace CdlcManager
                         string folder = importing ? state.Downloads : state.Dlc;
                         var files = await Task.Run(() => Library.Scan(folder, !importing));
                         if (version != loadVersion || requested != page) return;
-                        if (importing) downloaded = files;
-                        else
+                        if (importing)
                         {
-                            var metadata = await Task.Run(() => File.Exists(ArrangementIndex.SavedExport)
-                                ? ArrangementIndex.Match(files, ArrangementIndex.Read(ArrangementIndex.SavedExport))
-                                : new Dictionary<string, Arrangement[]>());
+                            var matches = await Task.Run(() => Library.FindImported(files, next.Dlc));
                             if (version != loadVersion || requested != page) return;
-                            installed = files;
-                            arrangements = metadata;
+                            downloaded = files;
+                            imported = matches;
                         }
+                        else installed = files;
                         ShowFiles(importing);
                         break;
                     case 3:
@@ -236,8 +231,12 @@ namespace CdlcManager
         void ShowQueue()
         {
             string selected = SelectedSong == null ? null : SelectedSong.Id;
-            var rows = state.Songs.Select(song => new Row {
-                Song = song, Title = song.Title, Detail = Library.Installed(state, song) ? "Installed" : "Saved for later"
+            var rows = state.Songs.Where(song => !song.Removed).Select(song =>
+            {
+                DateTimeOffset added;
+                string detail = Library.Installed(state, song) ? "✓ Installed" : "Saved";
+                if (DateTimeOffset.TryParse(song.QueuedAt, out added)) detail += "  ·  " + added.LocalDateTime.ToString("d");
+                return new Row { Song = song, Title = song.Title, Detail = detail };
             }).ToArray();
             queue.ItemsSource = rows;
             queue.SelectedItem = rows.FirstOrDefault(row => row.Song.Id == selected);
@@ -250,21 +249,11 @@ namespace CdlcManager
             var list = importing ? imports : library;
             var previous = list.SelectedItems.Cast<Row>().Select(row => row.File).ToArray();
             var term = Get<TextBox>(importing ? "ImportFilter" : "LibraryFilter").Text.Trim();
-            int grouping = importing ? 0 : Get<ComboBox>("LibraryGrouping").SelectedIndex;
-            var rows = (importing
-                ? downloaded.Select(file => new Row { File = file, Title = Path.GetFileNameWithoutExtension(file), Detail = ".psarc" })
-                : installed.SelectMany(file => LibraryRows(file, grouping)))
-                .Where(row => row.Title.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                    row.Detail.IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0 ||
-                    Path.GetFileName(row.File).IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0)
-                .ToArray();
-            if (grouping > 0)
-            {
-                var view = new ListCollectionView(rows.OrderBy(row => row.Group).ThenBy(row => row.Title).ToArray());
-                view.GroupDescriptions.Add(new PropertyGroupDescription("Group"));
-                list.ItemsSource = view;
-            }
-            else list.ItemsSource = rows;
+            var rows = (importing ? downloaded : installed)
+                .Where(file => Path.GetFileName(file).IndexOf(term, StringComparison.CurrentCultureIgnoreCase) >= 0)
+                .Select(file => new Row { File = file, Title = Path.GetFileName(file),
+                    Detail = importing && imported.Contains(file) ? "✓ Imported" : "" }).ToArray();
+            list.ItemsSource = rows;
             var selection = rows.Where(item => previous.Contains(item.File));
             if (importing)
                 foreach (var row in selection) list.SelectedItems.Add(row);
@@ -274,56 +263,7 @@ namespace CdlcManager
             empty.Text = !Directory.Exists(folder) ? "Choose a folder in Settings." :
                 term.Length > 0 ? "No files match this search." : importing ? "No Windows CDLC files found in Downloads." : "No Windows CDLC files found in this folder.";
             empty.Visibility = rows.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
-            if (!importing)
-                Get<TextBlock>("MetadataStatus").Text = arrangements.Count == 0
-                    ? "Import an Arrangement Analyzer CSV to add tuning and parts."
-                    : arrangements.Count + (arrangements.Count == 1 ? " file" : " files") + " with arrangement info";
             UpdateActions();
-        }
-
-        IEnumerable<Row> LibraryRows(string file, int grouping)
-        {
-            Arrangement[] details;
-            if (!arrangements.TryGetValue(file, out details))
-            {
-                yield return new Row { File = file, Title = Path.GetFileNameWithoutExtension(file),
-                    Detail = "Metadata unavailable", Group = "Unknown" };
-                yield break;
-            }
-            foreach (var song in details.GroupBy(item => new { item.Artist, item.Title }))
-            {
-                string title = song.Key.Title.Length == 0 ? Path.GetFileNameWithoutExtension(file) : song.Key.Title;
-                if (song.Key.Artist.Length > 0) title = song.Key.Artist + " — " + title;
-                foreach (var group in song.GroupBy(item => grouping == 1 ? (item.Tuning.Length == 0 ? "Unknown tuning" : item.Tuning)
-                    : grouping == 2 ? item.Part : ""))
-                {
-                    string parts = String.Join(" · ", group.Select(item => item.Tuning.Length == 0 ? item.Part
-                        : item.Part + " / " + item.Tuning).Distinct(StringComparer.OrdinalIgnoreCase));
-                    yield return new Row { File = file, Title = title, Detail = parts, Group = group.Key };
-                }
-            }
-        }
-
-        async Task<string> ImportMetadata()
-        {
-            var dialog = new OpenFileDialog { Filter = "Arrangement Analyzer export (*.csv)|*.csv", CheckFileExists = true };
-            if (dialog.ShowDialog(Window) != true) return "";
-            return await Task.Run(() =>
-            {
-                var rows = ArrangementIndex.Read(dialog.FileName);
-                if (rows.Length == 0) throw new InvalidDataException("The CSV contains no Windows CDLC arrangement rows.");
-                string destination = ArrangementIndex.SavedExport;
-                Directory.CreateDirectory(Library.DataFolder);
-                string temp = Path.Combine(Library.DataFolder, Guid.NewGuid() + ".tmp");
-                try
-                {
-                    File.Copy(dialog.FileName, temp);
-                    if (File.Exists(destination)) File.Replace(temp, destination, null);
-                    else File.Move(temp, destination);
-                }
-                finally { if (File.Exists(temp)) File.Delete(temp); }
-                return "Saved " + rows.Length + " arrangement records.";
-            });
         }
 
         void ShowSettings()
@@ -341,10 +281,10 @@ namespace CdlcManager
             Get<Button>("GlobalAction").Visibility = page != 3 && !Directory.Exists(state.Dlc) ? Visibility.Visible : Visibility.Collapsed;
             Get<StackPanel>("SongActions").Visibility = hasSong ? Visibility.Visible : Visibility.Hidden;
             Get<Button>("OpenSong").IsEnabled = !busy && hasSong;
-            Get<Button>("InstallSong").IsEnabled = !busy && hasSong;
-            Get<Button>("LinkSong").IsEnabled = !busy && hasSong;
-            Get<Button>("RemoveSong").IsEnabled = !busy && hasSong && !Library.Installed(state, SelectedSong);
+            Get<Button>("RemoveSong").IsEnabled = !busy && hasSong;
             Get<Button>("ImportSelected").IsEnabled = !busy && imports.SelectedItems.Count > 0;
+            Get<Button>("DeleteDownloads").IsEnabled = !busy && imports.SelectedItems.Count > 0;
+            Get<Button>("CleanDownloads").IsEnabled = !busy && imported.Count > 0;
             Get<Button>("SelectAllFiles").IsEnabled = !busy && imports.Items.Count > 0;
             Get<Button>("RevealFile").IsEnabled = !busy && (library.SelectedItem != null || Directory.Exists(state.Dlc));
             Get<Button>("AddLink").IsEnabled = !busy;
@@ -426,51 +366,17 @@ namespace CdlcManager
         void OpenSong()
         {
             var song = SelectedSong;
-            if (song != null) Open("https://ignition4.customsforge.com/cdlc/" + song.Id);
-        }
-
-        async Task<string> ImportForSong()
-        {
-            var song = SelectedSong;
-            if (song == null) return "";
-            string folder = RequireDlc();
-            var dialog = FileDialog(state.Downloads);
-            if (dialog.ShowDialog(Window) != true) return "";
-            status.Text = "Importing file…";
-            string file = await Task.Run(() => Library.Import(dialog.FileName, Path.GetFileName(dialog.FileName), folder));
-            Associate(song, file);
-            return "Installed " + file;
-        }
-
-        void LinkExisting()
-        {
-            var song = SelectedSong;
             if (song == null) return;
-            var root = Path.GetFullPath(RequireDlc()).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-            var dialog = FileDialog(root);
-            if (dialog.ShowDialog(Window) != true) return;
-            if (!dialog.FileName.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !Library.PcFile.IsMatch(dialog.FileName))
-                throw new IOException("Select a PC CDLC file inside your Rocksmith DLC folder.");
-            Associate(song, dialog.FileName.Substring(root.Length));
-            status.Text = "Linked " + Path.GetFileName(dialog.FileName);
-            Refresh();
-        }
-
-        static void Associate(Song song, string file)
-        {
-            Library.Access(current =>
-            {
-                var entry = current.Songs.FirstOrDefault(item => item.Id == song.Id);
-                if (entry == null) { entry = song; current.Songs.Add(entry); }
-                entry.File = file;
-            });
+            var url = "https://ignition4.customsforge.com/cdlc/" + song.Id;
+            try { Process.Start(new ProcessStartInfo("chrome.exe", url) { UseShellExecute = true }); }
+            catch (System.ComponentModel.Win32Exception) { throw new IOException("Open the Chrome extension and download the song from Download Later."); }
         }
 
         void RemoveSong()
         {
             var song = SelectedSong;
             if (song == null) return;
-            Library.Access(current => current.Songs.RemoveAll(item => item.Id == song.Id && !Library.Installed(current, item)));
+            Bridge.Remove(song.Id);
             status.Text = "Removed from the queue.";
             Refresh();
         }
@@ -485,7 +391,16 @@ namespace CdlcManager
                 var failures = new System.Collections.Generic.List<string>();
                 foreach (var file in sources)
                 {
-                    try { Library.Import(file, Path.GetFileName(file), folder); }
+                    try
+                    {
+                        string target = Library.Import(file, Path.GetFileName(file), folder);
+                        Library.Access(current =>
+                        {
+                            if (!String.Equals(current.Dlc, folder, StringComparison.OrdinalIgnoreCase)) return;
+                            var matches = current.Songs.Where(song => String.Equals(song.DownloadedFile, file, StringComparison.OrdinalIgnoreCase)).ToArray();
+                            if (matches.Length == 1) matches[0].File = target;
+                        });
+                    }
                     catch (Exception error) { failures.Add(Path.GetFileName(file) + " — " + error.Message); }
                 }
                 return failures;
@@ -494,6 +409,17 @@ namespace CdlcManager
             if (errors.Count > 0)
                 MessageBox.Show(Window, String.Join(Environment.NewLine, errors), "Import results");
             return (sources.Length - errors.Count) + " files ready in Rocksmith." + (errors.Count == 0 ? "" : " " + errors.Count + " could not be imported.");
+        }
+
+        async Task<string> RecycleDownloads(bool cleanup)
+        {
+            var files = cleanup ? imported.ToArray() : imports.SelectedItems.Cast<Row>().Select(row => row.File).ToArray();
+            if (files.Length == 0) return "";
+            if (MessageBox.Show(Window, "Move " + files.Length + " file(s) from Downloads to the Recycle Bin?",
+                cleanup ? "Clean up imported files" : "Delete selected downloads", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return "";
+            var settings = state;
+            var result = await Task.Run(() => Library.Recycle(files, settings, cleanup));
+            return result + " of " + files.Length + " files moved to the Recycle Bin.";
         }
 
         void RevealFile()
@@ -526,7 +452,7 @@ namespace CdlcManager
             }
             downloaded = new string[0];
             installed = new string[0];
-            arrangements.Clear();
+            imported.Clear();
             ShowSettings();
             status.Text = "Folder saved.";
         }
@@ -555,11 +481,6 @@ namespace CdlcManager
         {
             if (!Directory.Exists(state.Dlc)) throw new IOException("Choose your Rocksmith DLC folder in Settings first.");
             return state.Dlc;
-        }
-
-        static OpenFileDialog FileDialog(string folder)
-        {
-            return new OpenFileDialog { Filter = "Rocksmith archives (*.psarc)|*.psarc", InitialDirectory = folder ?? "", CheckFileExists = true };
         }
 
         static void Open(string target)

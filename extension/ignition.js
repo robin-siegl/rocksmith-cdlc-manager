@@ -3,11 +3,11 @@ let scheduled = false;
 
 function addControl(container, id, title) {
   if (!/^\d{1,12}$/.test(id) || !container) return;
-  let control = container.querySelector('.rs-cdlc-control');
+  let control = container.querySelector('.rs-cdlc-save');
   if (!control) {
     control = document.createElement('button');
     control.type = 'button';
-    control.className = 'rs-cdlc-control';
+    control.className = 'rs-cdlc-control rs-cdlc-save';
     container.append(control);
   }
   const installed = data.installed.includes(id);
@@ -73,3 +73,50 @@ chrome.storage.onChanged.addListener(changes => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden) void refresh(); });
 setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
 void refresh();
+
+async function requestWindowsDownload(button) {
+  const id = location.pathname.match(/^\/cdlc\/(\d+)\/?$/)?.[1];
+  if (!id) return;
+  button.disabled = true;
+  button.textContent = 'Getting Windows link…';
+  try {
+    const link = Array.from(document.querySelectorAll('a[href*="collectedcdlcs/toggle/"]')).find(anchor => {
+      const url = new URL(anchor.href);
+      return url.origin === location.origin && url.pathname.endsWith('/toggle/' + id) && url.searchParams.get('platform') === 'pc';
+    });
+    if (!link) throw new Error('Sign in to Ignition and use its Windows download button if available.');
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!token) throw new Error('Reload Ignition, then try again.');
+    const response = await fetch(link.href, {method:'PATCH', credentials:'same-origin', headers:{
+      Accept:'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':token
+    }});
+    if (!response.ok) throw new Error('Ignition could not refresh the link. Try its Windows download button.');
+    const {downloadLink} = await response.json();
+    if (typeof downloadLink !== 'string') throw new Error('Ignition did not return a file link. Try its Windows download button.');
+    const result = await chrome.runtime.sendMessage({type:'download-link',url:downloadLink,id});
+    if (result.error) throw new Error(result.error);
+    button.textContent = result.downloaded ? 'Download started' : 'File host opened';
+  } catch (error) {
+    button.textContent = 'Try Ignition’s Windows button';
+    button.title = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+if (/^\/cdlc\/\d+\/?$/.test(location.pathname)) {
+  const title = document.querySelector('main h1, h1');
+  if (title) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'rs-cdlc-control';
+    button.textContent = 'Download Windows';
+    button.onclick = () => requestWindowsDownload(button);
+    title.parentElement.append(button);
+    chrome.runtime.sendMessage({type:'download-intent'}).then(result => {
+      if (result?.start) void requestWindowsDownload(button);
+    }).catch(() => {});
+  }
+}
+
+

@@ -98,7 +98,7 @@
             <Setter Property="Template">
               <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                  <Border x:Name="Row" BorderThickness="0,0,0,1" BorderBrush="#2B2D2F" Background="Transparent" Padding="{TemplateBinding Padding}">
+                  <Border x:Name="Row" BorderThickness="0,0,0,1" BorderBrush="#2B2D2F" Background="Transparent" Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                     <ContentPresenter VerticalAlignment="Center"/>
                   </Border>
                   <ControlTemplate.Triggers>
@@ -116,55 +116,10 @@
           <DataTemplate>
             <Grid>
               <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-              <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
-              <TextBlock Grid.Column="1" Text="{Binding Detail}" ToolTip="{Binding Detail}" TextTrimming="CharacterEllipsis" MaxWidth="330" Style="{StaticResource MutedText}" FontSize="12"/>
+              <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
+              <TextBlock Grid.Column="1" Text="{Binding Detail}" VerticalAlignment="Center" ToolTip="{Binding Detail}" TextTrimming="CharacterEllipsis" MaxWidth="330" Style="{StaticResource MutedText}"/>
             </Grid>
           </DataTemplate>
-        </Setter.Value>
-      </Setter>
-    </Style>
-    <Style TargetType="ComboBox">
-      <Setter Property="Foreground" Value="#F5F5EE"/>
-      <Setter Property="Template">
-        <Setter.Value>
-          <ControlTemplate TargetType="ComboBox">
-            <Grid>
-              <ToggleButton Focusable="False" ClickMode="Press" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                <ToggleButton.Template>
-                  <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Frame" Background="#25282A" BorderBrush="#343739" BorderThickness="1"/>
-                    <ControlTemplate.Triggers>
-                      <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="#868B8D"/></Trigger>
-                    </ControlTemplate.Triggers>
-                  </ControlTemplate>
-                </ToggleButton.Template>
-              </ToggleButton>
-              <ContentPresenter Margin="12,0,28,0" VerticalAlignment="Center" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" IsHitTestVisible="False"/>
-              <Path Data="M 0,0 L 4,4 L 8,0" Stroke="#A8ADB0" StrokeThickness="1.5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" IsHitTestVisible="False"/>
-              <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}">
-                <Border MinWidth="{TemplateBinding ActualWidth}" Background="#25282A" BorderBrush="#343739" BorderThickness="1">
-                  <ScrollViewer><ItemsPresenter/></ScrollViewer>
-                </Border>
-              </Popup>
-            </Grid>
-          </ControlTemplate>
-        </Setter.Value>
-      </Setter>
-      <Setter Property="ItemContainerStyle">
-        <Setter.Value>
-          <Style TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="#F5F5EE"/>
-            <Setter Property="Template">
-              <Setter.Value>
-                <ControlTemplate TargetType="ComboBoxItem">
-                  <Border x:Name="Option" Padding="12,8" Background="#25282A"><ContentPresenter/></Border>
-                  <ControlTemplate.Triggers>
-                    <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Option" Property="Background" Value="#37351F"/></Trigger>
-                  </ControlTemplate.Triggers>
-                </ControlTemplate>
-              </Setter.Value>
-            </Setter>
-          </Style>
         </Setter.Value>
       </Setter>
     </Style>
@@ -237,9 +192,9 @@
             </Grid>
           </Border>
           <StackPanel x:Name="SongActions" Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
-            <Button x:Name="OpenSong" Content="Open in Ignition" Style="{StaticResource Primary}"/>
-            <Button x:Name="InstallSong" Content="Import for song" Margin="8,0,0,0"/>
-            <Button x:Name="LinkSong" Content="Link existing file" Margin="8,0,0,0"/>
+            <Button x:Name="OpenSong" Content="Open in Chrome" Style="{StaticResource Primary}"/>
+
+
             <Button x:Name="RemoveSong" Content="Remove" Margin="8,0,0,0"/>
           </StackPanel>
         </Grid>
@@ -259,6 +214,8 @@
           <DockPanel Grid.Row="2" Margin="0,12,0,0">
             <Button x:Name="ImportSelected" DockPanel.Dock="Right" Content="Import selected" Style="{StaticResource Primary}"/>
             <Button x:Name="SelectAllFiles" DockPanel.Dock="Left" Content="Select all"/>
+            <Button x:Name="DeleteDownloads" DockPanel.Dock="Left" Content="Delete selected" Margin="8,0,0,0"/>
+            <Button x:Name="CleanDownloads" DockPanel.Dock="Left" Content="Clean up imported" Margin="8,0,0,0"/>
             <TextBlock x:Name="ImportSelection" Margin="12,0" Style="{StaticResource MutedText}"/>
           </DockPanel>
         </Grid>
@@ -266,34 +223,19 @@
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
           <DockPanel Margin="0,0,0,12">
             <Button x:Name="RefreshFiles" DockPanel.Dock="Right" Content="Refresh" Margin="9,0,0,0"/>
-            <ComboBox x:Name="LibraryGrouping" DockPanel.Dock="Right" Width="145" Height="40" Margin="9,0,0,0" SelectedIndex="0" VerticalContentAlignment="Center" AutomationProperties.Name="Group library">
-              <ComboBoxItem Content="All songs"/>
-              <ComboBoxItem Content="By tuning"/>
-              <ComboBoxItem Content="By arrangement"/>
-            </ComboBox>
             <TextBlock DockPanel.Dock="Left" Text="Search files" Margin="0,0,12,0" Style="{StaticResource MutedText}"/>
             <TextBox x:Name="LibraryFilter" AutomationProperties.Name="Search installed files"/>
           </DockPanel>
           <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
             <Grid>
-              <ListBox x:Name="LibraryItems" AutomationProperties.Name="Installed PC archives">
-                <ListBox.GroupStyle>
-                  <GroupStyle>
-                    <GroupStyle.HeaderTemplate><DataTemplate>
-                      <Border Background="#272A2B" Padding="14,8">
-                        <TextBlock Text="{Binding Name}" Foreground="#F6E650" FontWeight="SemiBold"/>
-                      </Border>
-                    </DataTemplate></GroupStyle.HeaderTemplate>
-                  </GroupStyle>
-                </ListBox.GroupStyle>
-              </ListBox>
+              <ListBox x:Name="LibraryItems" AutomationProperties.Name="Installed PC archives"/>
               <TextBlock x:Name="LibraryEmpty" HorizontalAlignment="Center" Margin="16" Style="{StaticResource MutedText}" TextWrapping="Wrap" IsHitTestVisible="False"/>
             </Grid>
           </Border>
           <DockPanel Grid.Row="2" Margin="0,12,0,0">
-            <Button x:Name="ImportMetadata" DockPanel.Dock="Right" Content="Import arrangement CSV"/>
+
             <Button x:Name="RevealFile" DockPanel.Dock="Left" Content="Show in Explorer"/>
-            <TextBlock x:Name="MetadataStatus" Margin="12,0" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+
           </DockPanel>
         </Grid>
         <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">

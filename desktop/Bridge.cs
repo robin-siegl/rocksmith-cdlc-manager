@@ -34,6 +34,7 @@ namespace CdlcManager
         {
             public string Type { get; set; }
             public Song Song { get; set; }
+            public string File { get; set; }
         }
 
         static object Respond(Message message)
@@ -44,7 +45,7 @@ namespace CdlcManager
                 return new {
                     ok = true,
                     installed = state.Songs.Where(song => Library.Installed(state, song)).Select(song => song.Id).ToArray(),
-                    queue = state.Songs.Where(song => !Library.Installed(state, song))
+                    queue = state.Songs.Where(song => !song.Removed)
                         .Select(song => new { id = song.Id, title = song.Title }).ToArray()
                 };
             }
@@ -53,7 +54,18 @@ namespace CdlcManager
                 throw new IOException("Expected an Ignition song ID.");
             if (message.Type == "save") Save(entry);
             else if (message.Type == "remove")
-                Library.Access(state => state.Songs.RemoveAll(song => song.Id == entry.Id && !Library.Installed(state, song)));
+                Remove(entry.Id);
+            else if (message.Type == "downloaded")
+            {
+                if (String.IsNullOrWhiteSpace(message.File) || !Path.IsPathRooted(message.File) ||
+                    !Library.PcFile.IsMatch(message.File) || !File.Exists(message.File))
+                    throw new IOException("Expected a completed Windows CDLC download.");
+                Library.Access(state =>
+                {
+                    var song = state.Songs.FirstOrDefault(item => item.Id == entry.Id);
+                    if (song != null) song.DownloadedFile = Path.GetFullPath(message.File);
+                });
+            }
             else throw new IOException("Unknown message.");
             return new { ok = true };
         }
@@ -67,11 +79,26 @@ namespace CdlcManager
                 var existing = state.Songs.FirstOrDefault(song => song.Id == entry.Id);
                 if (existing != null)
                 {
+                    if (existing.Removed) existing.QueuedAt = DateTimeOffset.UtcNow.ToString("o");
+                    existing.Removed = false;
                     if (existing.Title == fallback) existing.Title = title;
                     return;
                 }
-                state.Songs.Add(new Song { Id = entry.Id, Title = title, Url = "https://ignition4.customsforge.com/cdlc/" + entry.Id });
+                state.Songs.Add(new Song { Id = entry.Id, Title = title, Url = "https://ignition4.customsforge.com/cdlc/" + entry.Id,
+                    QueuedAt = DateTimeOffset.UtcNow.ToString("o") });
+            });
+        }
+
+        internal static void Remove(string id)
+        {
+            Library.Access(state =>
+            {
+                var song = state.Songs.FirstOrDefault(item => item.Id == id);
+                if (song == null) return;
+                if (song.File == null && song.DownloadedFile == null) state.Songs.Remove(song);
+                else song.Removed = true;
             });
         }
     }
 }
+

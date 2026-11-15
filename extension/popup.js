@@ -5,7 +5,7 @@ async function update(message = {type:'status'}) {
   try {
     const data = await chrome.runtime.sendMessage(message);
     if (data.error) throw new Error(data.error);
-    const songs = data.queue.filter(song => !data.installed.includes(song.id));
+    const songs = data.queue;
     status.textContent = (songs.length ? songs.length + ' saved' : 'No songs saved') +
       (data.connected ? ' · Windows app connected' : ' · Stored in Chrome');
     list.replaceChildren(...songs.map(song => {
@@ -15,6 +15,18 @@ async function update(message = {type:'status'}) {
       link.target = '_blank';
       link.rel = 'noopener';
       link.textContent = song.title;
+      const download = document.createElement('button');
+      download.type = 'button';
+      download.textContent = 'Download';
+      download.setAttribute('aria-label', 'Download ' + song.title);
+      download.onclick = async () => {
+        download.disabled = true;
+        try {
+          const result = await chrome.runtime.sendMessage({type:'start-download',id:song.id});
+          if (result.error) throw new Error(result.error);
+        } catch (error) { status.textContent = error.message; }
+        finally { download.disabled = false; }
+      };
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'Remove';
@@ -24,7 +36,7 @@ async function update(message = {type:'status'}) {
         await update({type:'remove',song});
         remove.disabled = false;
       };
-      row.append(link, remove);
+      row.append(link, download, remove);
       return row;
     }));
   } catch (error) { status.textContent = error.message; }
@@ -32,3 +44,4 @@ async function update(message = {type:'status'}) {
 
 document.querySelector('#refresh').onclick = () => update();
 void update();
+
