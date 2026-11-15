@@ -1,0 +1,243 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rocksmith CDLC Manager" Width="1100" Height="720" MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen" Background="#101112" Foreground="#F5F5EE"
+        FontFamily="Segoe UI" FontSize="14" UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <Window.Resources>
+    <SolidColorBrush x:Key="Surface" Color="#191B1D"/>
+    <SolidColorBrush x:Key="Border" Color="#343739"/>
+    <SolidColorBrush x:Key="Muted" Color="#A8ADB0"/>
+    <SolidColorBrush x:Key="Accent" Color="#F6E650"/>
+    <Style TargetType="TextBlock">
+      <Setter Property="Foreground" Value="#F5F5EE"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="MutedText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="Height" Value="40"/>
+      <Setter Property="Padding" Value="14,0"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Background" Value="#25282A"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+      <Setter Property="Foreground" Value="#F5F5EE"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Chrome" CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+              <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" Margin="{TemplateBinding Padding}" RecognizesAccessKey="True"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#868B8D"/></Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value=".73"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value=".42"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="{StaticResource Accent}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+      <Setter Property="Foreground" Value="#181808"/>
+    </Style>
+    <Style x:Key="Nav" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="HorizontalContentAlignment" Value="Left"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderBrush" Value="Transparent"/>
+      <Setter Property="Margin" Value="0,0,0,7"/>
+    </Style>
+    <Style TargetType="TextBox">
+      <Setter Property="Height" Value="40"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+      <Setter Property="Background" Value="#131516"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+      <Setter Property="Foreground" Value="#F5F5EE"/>
+      <Setter Property="CaretBrush" Value="{StaticResource Accent}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Chrome" CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ListBox">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#F5F5EE"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+      <Setter Property="ItemContainerStyle">
+        <Setter.Value>
+          <Style TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="MinHeight" Value="48"/>
+            <Setter Property="Template">
+              <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                  <Border x:Name="Row" BorderThickness="0,0,0,1" BorderBrush="#2B2D2F" Background="Transparent" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter VerticalAlignment="Center"/>
+                  </Border>
+                  <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Row" Property="Background" Value="#25282A"/></Trigger>
+                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Row" Property="Background" Value="#37351F"/><Setter TargetName="Row" Property="BorderBrush" Value="#716529"/></Trigger>
+                  </ControlTemplate.Triggers>
+                </ControlTemplate>
+              </Setter.Value>
+            </Setter>
+          </Style>
+        </Setter.Value>
+      </Setter>
+      <Setter Property="ItemTemplate">
+        <Setter.Value>
+          <DataTemplate>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Margin="0,0,16,0"/>
+              <TextBlock Grid.Column="1" Text="{Binding Detail}" Style="{StaticResource MutedText}" FontSize="12"/>
+            </Grid>
+          </DataTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="Card" TargetType="Border">
+      <Setter Property="Background" Value="{StaticResource Surface}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="16"/>
+    </Style>
+  </Window.Resources>
+  <Grid Background="#101112">
+    <Grid.ColumnDefinitions><ColumnDefinition Width="206"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Border Background="#151719" BorderBrush="#2E3032" BorderThickness="0,0,1,0">
+      <DockPanel Margin="17,23,17,18">
+        <StackPanel DockPanel.Dock="Top">
+          <StackPanel Orientation="Horizontal" Margin="3,0,0,32">
+            <Border Width="40" Height="40" CornerRadius="10" Background="{StaticResource Accent}">
+              <Path Data="M 5,0 L 28,0 L 23,6 L 13,6 L 5,16 L 0,16 Z M 10,19 L 18,9 L 25,9 L 16,21 L 16,27 L 10,27 Z" Fill="#17190F" Width="25" Height="25" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel Margin="11,0,0,0" VerticalAlignment="Center">
+              <TextBlock Text="CDLC Manager" FontWeight="Bold"/>
+              <TextBlock Text="Rocksmith 2014" FontSize="11" Style="{StaticResource MutedText}"/>
+            </StackPanel>
+          </StackPanel>
+          <Button x:Name="QueueTab" Style="{StaticResource Nav}" Content="Download queue"/>
+          <Button x:Name="ImportTab" Style="{StaticResource Nav}" Content="Import files"/>
+          <Button x:Name="LibraryTab" Style="{StaticResource Nav}" Content="Installed library"/>
+        </StackPanel>
+        <Button x:Name="SettingsTab" DockPanel.Dock="Bottom" Style="{StaticResource Nav}" Content="Settings"/>
+        <Grid/>
+      </DockPanel>
+    </Border>
+    <Grid Grid.Column="1" Margin="31,24,31,18">
+      <Grid.RowDefinitions><RowDefinition Height="79"/><RowDefinition Height="*"/><RowDefinition Height="35"/></Grid.RowDefinitions>
+      <Grid>
+        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel>
+          <TextBlock x:Name="PageTitle" FontSize="31" FontWeight="Bold"/>
+          <TextBlock x:Name="PageDescription" Margin="0,5,0,0" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+        <Button x:Name="GlobalAction" Grid.Column="1" VerticalAlignment="Top" Margin="14,7,0,0" Content="Set DLC folder"/>
+      </Grid>
+      <Grid Grid.Row="1">
+        <Grid x:Name="QueuePage">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+            <Grid>
+              <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+              <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock Text="Ignition or direct download link" Margin="0,0,0,8" FontWeight="SemiBold"/>
+              <TextBox x:Name="LinkInput" Grid.Row="1" AutomationProperties.Name="Ignition or direct download link"/>
+              <Button x:Name="AddLink" Grid.Row="1" Grid.Column="1" Margin="9,0,0,0" Content="Add link" Style="{StaticResource Primary}"/>
+            </Grid>
+          </Border>
+          <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+            <Grid>
+              <ListBox x:Name="QueueItems" AutomationProperties.Name="Saved songs"/>
+              <TextBlock x:Name="QueueEmpty" Text="Save a song in Chrome or paste an Ignition link above." HorizontalAlignment="Center" Margin="16" Style="{StaticResource MutedText}" TextWrapping="Wrap" IsHitTestVisible="False"/>
+            </Grid>
+          </Border>
+          <StackPanel x:Name="SongActions" Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0">
+            <Button x:Name="OpenSong" Content="Open in Ignition" Style="{StaticResource Primary}"/>
+            <Button x:Name="InstallSong" Content="Import for song" Margin="8,0,0,0"/>
+            <Button x:Name="LinkSong" Content="Link existing file" Margin="8,0,0,0"/>
+            <Button x:Name="RemoveSong" Content="Remove" Margin="8,0,0,0"/>
+          </StackPanel>
+        </Grid>
+        <Grid x:Name="ImportPage" Visibility="Collapsed">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <DockPanel Margin="0,0,0,12">
+            <Button x:Name="Rescan" DockPanel.Dock="Right" Content="Rescan Downloads" Margin="9,0,0,0"/>
+            <TextBlock DockPanel.Dock="Left" Text="Filter files" Margin="0,0,12,0" Style="{StaticResource MutedText}"/>
+            <TextBox x:Name="ImportFilter" AutomationProperties.Name="Filter downloads"/>
+          </DockPanel>
+          <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+            <Grid>
+              <ListBox x:Name="ImportItems" SelectionMode="Multiple" AutomationProperties.Name="Downloaded PC archives"/>
+              <TextBlock x:Name="ImportEmpty" HorizontalAlignment="Center" Margin="16" Style="{StaticResource MutedText}" TextWrapping="Wrap" IsHitTestVisible="False"/>
+            </Grid>
+          </Border>
+          <DockPanel Grid.Row="2" Margin="0,12,0,0">
+            <Button x:Name="ImportSelected" DockPanel.Dock="Right" Content="Import selected" Style="{StaticResource Primary}"/>
+            <Button x:Name="SelectAllFiles" DockPanel.Dock="Left" Content="Select all"/>
+            <TextBlock x:Name="ImportSelection" Margin="12,0" Style="{StaticResource MutedText}"/>
+          </DockPanel>
+        </Grid>
+        <Grid x:Name="LibraryPage" Visibility="Collapsed">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+          <DockPanel Margin="0,0,0,12">
+            <Button x:Name="RefreshFiles" DockPanel.Dock="Right" Content="Refresh library" Margin="9,0,0,0"/>
+            <TextBlock DockPanel.Dock="Left" Text="Search files" Margin="0,0,12,0" Style="{StaticResource MutedText}"/>
+            <TextBox x:Name="LibraryFilter" AutomationProperties.Name="Search installed files"/>
+          </DockPanel>
+          <Border Grid.Row="1" Style="{StaticResource Card}" Padding="0">
+            <Grid>
+              <ListBox x:Name="LibraryItems" AutomationProperties.Name="Installed PC archives"/>
+              <TextBlock x:Name="LibraryEmpty" HorizontalAlignment="Center" Margin="16" Style="{StaticResource MutedText}" TextWrapping="Wrap" IsHitTestVisible="False"/>
+            </Grid>
+          </Border>
+          <Button x:Name="RevealFile" Grid.Row="2" HorizontalAlignment="Left" Content="Show in Explorer" Margin="0,12,0,0"/>
+        </Grid>
+        <ScrollViewer x:Name="SettingsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+              <DockPanel>
+                <Button x:Name="ChooseDlc" DockPanel.Dock="Right" Margin="12,0,0,0" Content="Choose folder"/>
+                <StackPanel><TextBlock Text="Rocksmith DLC folder" FontWeight="SemiBold"/><TextBlock x:Name="DlcPath" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/></StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+              <DockPanel>
+                <Button x:Name="ChooseDownloads" DockPanel.Dock="Right" Margin="12,0,0,0" Content="Choose folder"/>
+                <StackPanel><TextBlock Text="Downloads folder" FontWeight="SemiBold"/><TextBlock x:Name="DownloadsPath" Style="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/></StackPanel>
+              </DockPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Text="Chrome connection" FontWeight="SemiBold"/>
+                <TextBlock Text="Load the extension in Chrome, then paste its ID from chrome://extensions." Style="{StaticResource MutedText}" Margin="0,4,0,10" TextWrapping="Wrap"/>
+                <DockPanel>
+                  <Button x:Name="Connect" DockPanel.Dock="Right" Content="Connect Chrome" Margin="9,0,0,0" Style="{StaticResource Primary}"/>
+                  <TextBox x:Name="ExtensionId" AutomationProperties.Name="Chrome extension ID"/>
+                </DockPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+      <TextBlock x:Name="Status" Grid.Row="2" Style="{StaticResource MutedText}" AutomationProperties.LiveSetting="Polite" TextTrimming="CharacterEllipsis"/>
+    </Grid>
+  </Grid>
+</Window>

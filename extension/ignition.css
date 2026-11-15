@@ -1,0 +1,5 @@
+.rs-cdlc-control{margin:3px 0 3px 8px;padding:3px 9px;border:1px solid #8d8041;border-radius:5px;background:#292615;color:#fff0a2;font:600 11px/1.5 system-ui,sans-serif;white-space:nowrap;vertical-align:middle;cursor:pointer}
+.rs-cdlc-control:hover{background:#3b351a}
+.rs-cdlc-control[data-state=installed]{background:#17332d;border-color:#467866;color:#aaf3d5;cursor:default}
+.rs-cdlc-control[data-state=saved]{background:#54491d}
+.rs-cdlc-control:focus-visible{outline:2px solid #fae743;outline-offset:2px}

@@ -1,0 +1,12 @@
+*{box-sizing:border-box}
+body{margin:0;padding:20px;width:380px;background:#101111;color:#f5f5f1;font:14px/1.45 "Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+header p{margin:0;color:#fae743;font-size:11px;font-weight:700;letter-spacing:.12em}
+h1{font-size:27px;letter-spacing:-.04em;margin:0}
+#status{color:#c0c0b7;margin:10px 0}
+ul{margin:0 0 14px;padding:0;list-style:none;max-height:360px;overflow:auto}
+li{display:flex;align-items:center;justify-content:space-between;gap:9px;padding:10px 9px;margin-top:6px;background:#1d1e1e;border-radius:6px;overflow-wrap:anywhere}
+a{color:#fae743;text-decoration:none}
+a:hover{text-decoration:underline}
+button{border:1px solid #646044;background:#2e2c1b;color:#f7efb7;border-radius:5px;padding:6px 8px;cursor:pointer;font:inherit;font-size:12px}
+button:hover{background:#474222}

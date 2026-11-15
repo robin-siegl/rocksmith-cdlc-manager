@@ -1,0 +1,69 @@
+name: Build and release
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a release from main
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check extension syntax and build release ZIPs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem extension -Filter '*.js' | ForEach-Object {
+            node --check $_.FullName
+            if ($LASTEXITCODE) { throw "Invalid JavaScript: $($_.Name)" }
+          }
+          ./Package.ps1
+          node scripts/smoke.cjs
+          if ($LASTEXITCODE) { throw 'Package smoke test failed.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-packages
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: package
+    if: startsWith(github.ref, 'refs/tags/v') || (github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-publication
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-packages
+          path: dist
+      - name: Publish versioned assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < VERSION)"
+          tag="v$version"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$tag" ]]; then
+            echo "Tag must match VERSION ($tag)." >&2
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists. Increase VERSION to publish a new release."
+            exit 0
+          fi
+          gh release create "$tag" dist/* --target "$GITHUB_SHA" --title "Rocksmith CDLC Manager $tag" --generate-notes
