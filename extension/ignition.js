@@ -67,7 +67,7 @@ function render() {
       if (lastDetail !== detail[1]) {
         lastDetail = detail[1];
         chrome.runtime.sendMessage({type:'download-intent'}).then(result => {
-          if (result?.start && actions.isConnected) void requestWindowsDownload(actions, detail[1]);
+          if (result?.start && actions.isConnected) clickWindowsDownload(actions, link);
         }).catch(() => {});
       }
     }
@@ -104,29 +104,11 @@ setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
 void refresh();
 schedule();
 
-async function requestWindowsDownload(actions, id) {
+function clickWindowsDownload(actions, link) {
+  if (!link.isConnected) return;
+  link.click();
   const status = document.createElement('span');
   status.setAttribute('role', 'status');
-  status.textContent = 'Getting Windows link…';
+  status.textContent = 'If no download opens, use the Windows button above.';
   actions.append(status);
-  try {
-    const link = windowsLink(id);
-    if (!link) throw new Error('Sign in to Ignition and use its Windows download button if available.');
-    const token = document.querySelector('meta[name="csrf-token"]')?.content;
-    if (!token) throw new Error('Reload Ignition, then try again.');
-    const response = await fetch(link.href, {method:'PATCH', credentials:'same-origin', headers:{
-      Accept:'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':token
-    }});
-    if (!response.ok) throw new Error('Ignition could not refresh the link. Try its Windows download button.');
-    const {downloadLink} = await response.json();
-    if (typeof downloadLink !== 'string') throw new Error('Ignition did not return a file link. Try its Windows download button.');
-    const result = await chrome.runtime.sendMessage({type:'download-link',url:downloadLink,id});
-    if (result.error) throw new Error(result.error);
-    status.textContent = result.downloaded ? 'Download started' : 'File host opened';
-  } catch (error) {
-    status.textContent = error.message;
-  }
 }
-
-
-
