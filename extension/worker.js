@@ -132,6 +132,9 @@ async function downloadAction(message, sender, page, popup) {
   }
   if (message.type !== 'download-link' || !isIgnition || !song || song !== id) throw new Error('Invalid song download request.');
 
+  if (url.origin === page.origin && url.pathname === '/cdlc/' + id + '/download' &&
+      url.searchParams.get('platform') === 'pc') return {navigate:url.href};
+
   if (['dropbox.com','www.dropbox.com'].includes(url.hostname) && /^\/(?:s\/|scl\/fi\/)/.test(url.pathname) && pcFile.test(leaf)) {
     url.searchParams.delete('raw');
     url.searchParams.set('dl','1');

@@ -121,6 +121,11 @@ async function startWindowsDownload(actions, link, id) {
     if (typeof downloadLink !== 'string' || !downloadLink) throw new Error('Ignition returned no download link.');
     const result = await chrome.runtime.sendMessage({type:'download-link',id,url:downloadLink});
     if (result?.error) throw new Error(result.error);
+    if (result?.navigate) {
+      status.textContent = 'Opening Windows download…';
+      location.assign(result.navigate);
+      return;
+    }
     status.textContent = result?.downloaded ? 'Download started.' : 'File host opened in Chrome.';
   } catch (error) {
     status.textContent = error.message + ' Use Ignition’s Windows button to continue.';
