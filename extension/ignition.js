@@ -3,7 +3,7 @@ let scheduled = false;
 let lastDetail = null;
 
 function windowsLink(id) {
-  return Array.from(document.querySelectorAll('a[href*="collectedcdlcs/toggle/"]')).find(anchor => {
+  return Array.from(document.querySelectorAll('div[x-on\\:cdlc-collection-changed\\.window] > a[href*="collectedcdlcs/toggle/"]')).find(anchor => {
     const url = new URL(anchor.href);
     return url.origin === location.origin && url.pathname.endsWith('/toggle/' + id) && url.searchParams.get('platform') === 'pc';
   });
@@ -67,7 +67,7 @@ function render() {
       if (lastDetail !== detail[1]) {
         lastDetail = detail[1];
         chrome.runtime.sendMessage({type:'download-intent'}).then(result => {
-          if (result?.start && actions.isConnected) clickWindowsDownload(actions, link);
+          if (result?.start && actions.isConnected) void startWindowsDownload(actions, link, detail[1]);
         }).catch(() => {});
       }
     }
@@ -104,11 +104,26 @@ setInterval(() => { if (!document.hidden) void refresh(); }, 30000);
 void refresh();
 schedule();
 
-function clickWindowsDownload(actions, link) {
-  if (!link.isConnected) return;
-  link.click();
+async function startWindowsDownload(actions, link, id) {
   const status = document.createElement('span');
   status.setAttribute('role', 'status');
-  status.textContent = 'If no download opens, use the Windows button above.';
+  status.textContent = 'Getting Windows download…';
   actions.append(status);
+  try {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!token) throw new Error('Ignition session unavailable.');
+    const response = await fetch(link.href, {
+      method:'PATCH', credentials:'same-origin',
+      headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest','X-CSRF-TOKEN':token}
+    });
+    if (!response.ok) throw new Error('Ignition returned HTTP ' + response.status + '.');
+    const {downloadLink} = await response.json();
+    if (typeof downloadLink !== 'string' || !downloadLink) throw new Error('Ignition returned no download link.');
+    const result = await chrome.runtime.sendMessage({type:'download-link',id,url:downloadLink});
+    if (result?.error) throw new Error(result.error);
+    status.textContent = result?.downloaded ? 'Download started.' : 'File host opened in Chrome.';
+  } catch (error) {
+    status.textContent = error.message + ' Use Ignition’s Windows button to continue.';
+  }
 }
+
