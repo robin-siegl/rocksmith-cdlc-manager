@@ -26,7 +26,8 @@ try {
   const manifest = JSON.parse(fs.readFileSync(path.join(extension, 'manifest.json')));
   assert.equal(manifest.version, version);
   for (const icon of Object.values(manifest.icons)) assert.ok(fs.statSync(path.join(extension, icon)).size > 0);
-  assert.ok(fs.existsSync(path.join(extension, manifest.action.default_popup)));
+  assert.ok(manifest.permissions.includes('sidePanel'));
+  assert.ok(fs.existsSync(path.join(extension, manifest.side_panel.default_path)));
 
   const exe = path.join(temporary, 'desktop', 'Rocksmith CDLC Manager.exe');
   const body = Buffer.from('{"type":"status"}');
@@ -47,3 +48,4 @@ try {
 } finally {
   fs.rmSync(temporary, {recursive:true, force:true});
 }
+

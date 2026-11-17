@@ -1,4 +1,5 @@
 const host = 'local.rocksmith_cdlc_manager';
+chrome.sidePanel?.setPanelBehavior({openPanelOnActionClick:true}).catch(console.error);
 let serial = Promise.resolve();
 let lastRefresh = 0;
 
